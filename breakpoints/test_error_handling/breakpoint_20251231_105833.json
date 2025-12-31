@@ -1,0 +1,8 @@
+{
+  "script_name": "test_error_handling",
+  "total_items": 5,
+  "successful_items": 3,
+  "failed_items": 4,
+  "last_successful_index": 5,
+  "last_execution_time": "2025-12-31T10:58:33.878347"
+}

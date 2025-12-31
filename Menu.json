@@ -1,0 +1,250 @@
+[
+    {
+        "theme": "MetaData",
+        "cn_name": "元数据",
+        "desc": "元数据是股票代码、期货代码等,需要提前获取",
+        "list": [
+            {
+                "name": "AKShare_api_menu",
+                "cn_name": "akshare接口列表",
+                "desc": "这个脚本的主要任务是将markdown格式化后存入数据库和生成知识库菜单,key是akshare文档中的标题链,value是对应标题链的文档",
+                "meta": {
+                    "reference": {
+                        "stock": "https://akshare.akfamily.xyz/_sources/data/stock/stock.md.txt",
+                        "future": "https://akshare.akfamily.xyz/_sources/data/futures/futures.md.txt",
+                        "bond": "https://akshare.akfamily.xyz/_sources/data/bond/bond.md.txt",
+                        "option": "https://akshare.akfamily.xyz/_sources/data/option/option.md.txt",
+                        "fx": "https://akshare.akfamily.xyz/_sources/data/fx/fx.md.txt",
+                        "currency": "https://akshare.akfamily.xyz/_sources/data/currency/currency.md.txt",
+                        "interest_rate": "https://akshare.akfamily.xyz/_sources/data/interest_rate/interest_rate.md.txt",
+                        "index": "https://akshare.akfamily.xyz/_sources/data/index/index.md.txt",
+                        "macro": "https://akshare.akfamily.xyz/_sources/data/macro/macro.md.txt",
+                        "tool": "https://akshare.akfamily.xyz/_sources/data/tool/tool.md.txt"
+                    }
+                }
+            },
+            {
+                "name": "a_stock_list",
+                "cn_name": "股票列表-A股",
+                "desc": "沪深京三个交易所的股票列表",
+                "period": "every_month_L_0",
+                "meta": {
+                    "akshare_api": "stock_info_a_code_name"
+                }
+            },
+            {
+                "name": "a_stock_item_em",
+                "cn_name": "股票详情-A股",
+                "desc": "获取股票的基础信息",
+                "period": "every_month_L_0",
+                "meta": {
+                    "akshare_api": "stock_individual_info_em"
+                }
+            }
+        ]
+    },
+    {
+        "theme": "MoneyRelation",
+        "cn_name": "资金面",
+        "desc": "流动资金的紧张紧张必然会导致投资萎缩,如果宽松则投资更有机会。",
+        "list": [
+            {
+                "name": "COMEX_Gold_Futures_hist",
+                "cn_name": "COMEX黄金期货历史价格",
+                "desc": "黄金是一种贵金属,价格越高,表示市场避险心态越强烈,因此也是衡量资金面的一种指标",
+                "turn_on": true,
+                "period": "period_sec1",
+                "meta": {
+                    "akshare_api": "ak.futures_foreign_commodity_subscribe_exchange_symbol()",
+                    "akshare_symbol_api": "futures_foreign_commodity_subscribe_exchange_symbol",
+                    "akshare_params": {
+                        "symbol": "GC"
+                    }
+                }
+            },
+            {
+                "name": "UDI",
+                "desc": "UDI是一个反映国际市场美元指数的指数,美元指数越高,国际市场资金需求就越大,投资就越紧张",
+                "cn_name": "UDI美元指数"
+            },
+            {
+                "theme": "SHIBOR",
+                "desc": "SHIBOR是一个反映上海市场银行间利率的指数,银行间利率越高,市场资金需求就越大,投资就越紧张",
+                "cn_name": "上海银行间利率",
+                "list": [
+                    {
+                        "name": "SHIBOR_overnight",
+                        "desc": "隔夜Shibor,表示1天内的银行间利率",
+                        "cn_name": "隔夜Shibor",
+                        "period": "every_WDay_11",
+                        "meta": {
+                            "akshare_api": "rate_interbank",
+                            "akshare_params": {
+                                "market": "上海银行同业拆借市场",
+                                "symbol": "Shibor人民币",
+                                "indicator": "隔夜"
+                            }
+                        }
+                    },
+                    {
+                        "name": "SHIBOR_7days",
+                        "desc": "7天Shibor,表示7天内的银行间利率",
+                        "cn_name": "7天Shibor",
+                        "meta": {
+                            "akshare_api": "rate_interbank",
+                            "akshare_params": {
+                                "market": "上海银行同业拆借市场",
+                                "symbol": "Shibor人民币",
+                                "indicator": "1周"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "SHIBOR",
+                "desc": "SHIBOR是一个反映上海市场银行间利率的指数,银行间利率越高,市场资金需求就越大,投资就越紧张",
+                "cn_name": "香港银行间利率"
+            },
+            {
+                "name": "USDCNY",
+                "desc": "美元/人民币汇率,人民币汇率越高,由于中国是工业国,越会预期出台利好政策,以及吸引更多资金寻求升值,A股越有机会走出独立行情,",
+                "cn_name": "美元/人民币"
+            },
+            {
+                "name": "CN_M2",
+                "desc": "国内广义存款M2,国内M2越高,表示国内资金需求越高,投资就越紧张,增速越快,表示国内资金需求越紧,投资就越紧张,但同时在数据公布一段时间,存量资金多,也意味着宽松政策效果更好,适当时候A股越有机会走出独立行情",
+                "cn_name": "国内M2"
+            }
+        ]
+    },
+    {
+        "theme": "TradeRelation",
+        "cn_name": "贸易面",
+        "desc": "贸易的稳定意为着实体不需要更多资金,如果贸易突增表示市面上大家突然开始囤货会占用资金,是突发重大事件的前兆,也会导致投资收紧。",
+        "list": [
+            {
+                "name": "BDI",
+                "cn_name": "波罗的海散货指数"
+            },
+            {
+                "name": "GeopoliticsNews",
+                "cn_name": "地缘政治新闻",
+                "desc": "地缘政治是影响大宗商品走向的重要因素,需要关注和跟踪"
+            },
+            {
+                "theme": "ExchangeTradedFuturesRelation",
+                "cn_name": "大宗商品期货",
+                "desc": "大宗商品指数越高,由两方面决定的,生产和消费,生产方基本是国家控制,因此也和地缘关系相关,因此熟知产地和生产占比的话,就可以判断出事件对大宗商品的影响",
+                "list": [
+                    {
+                        "name": "CoalFutures",
+                        "cn_name": "煤炭期货"
+                    },
+                    {
+                        "name": "OilFutures",
+                        "cn_name": "原油期货"
+                    },
+                    {
+                        "name": "GasFutures",
+                        "cn_name": "天然气期货"
+                    },
+                    {
+                        "name": "BeanFutures",
+                        "desc": "豆粕期货,豆粕是一种农产品,通常受天气影响.",
+                        "cn_name": "豆粕期货"
+                    },
+                    {
+                        "name": "IronFutures",
+                        "cn_name": "铁矿石期货"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "theme": "EconomyRelation",
+        "cn_name": "经济面",
+        "desc": "经济面是预测政府行动的指标,如果经济面显示通胀严重则预期政府会采取紧缩的货币政策.",
+        "list": [
+            {
+                "name": "CN_CPI",
+                "desc": "CPI和PPI要综合来看,如果CPI、PPI同时升高,表明是由于大宗工业品价格上涨,导致通胀,如果只有CPI高,PPI不涨,说明通胀是由于农产品价格上涨导致的,如果只有PPI高,CPI不涨,说明企业在中间承受巨大压力,消费者能力弱",
+                "cn_name": "中国消费者物价指数"
+            },
+            {
+                "name": "CN_PPI",
+                "desc": "生产者物价指数越高,表明通胀严重,如果股市较高,则有预期政府会紧缩货币",
+                "cn_name": "中国生产者物价指数"
+            },
+            {
+                "name": "USD_CPI",
+                "desc": "CPI和PPI要综合来看,如果CPI、PPI同时升高,表明是由于大宗工业品价格上涨,导致通胀,如果只有CPI高,PPI不涨,说明通胀是由于农产品价格上涨导致的,如果只有PPI高,CPI不涨,说明企业在中间承受巨大压力,消费者能力弱",
+                "cn_name": "美国消费者物价指数"
+            },
+            {
+                "name": "USD_PPI",
+                "desc": "生产者物价指数越高,表明通胀严重,如果股市较高,则有预期政府会紧缩货币",
+                "cn_name": "美国生产者物价指数"
+            }
+        ]
+    },
+    {
+        "theme": "AmericaFinanceRelation",
+        "cn_name": "美面金融面",
+        "desc": "美面金融一直以来都是各类指数昨日收盘的各类与美股相关的重要指标,因为美股是A股的风向标",
+        "list": [
+            {
+                "name": "DJI",
+                "desc": "道琼斯工业代表的是美国30家头部蓝筹企业,吸纳了大量的社保和国家基金,代表的是美国国家的重要力量",
+                "cn_name": "道琼斯指数"
+            },
+            {
+                "name": "NASDAQ",
+                "desc": "纳斯达克指数3300家纳斯达克上市的股票,以科技板块为主,是分析科技行业的重要指标,可以通过观察纳斯达克涨势好的公司来映射A股相关板块",
+                "cn_name": "纳斯达克指数"
+            },
+            {
+                "name": "SP500",
+                "desc": "标普500指数是一个包含全部市场70%-80%的市值,是代表美国股市整体景气度的一个重要指数,如果标普500下跌但DJI上涨代表股市整体景气度下降需要警惕",
+                "cn_name": "标普500指数"
+            },
+            {
+                "name": "S&P U.S. Treasury Bond Index",
+                "desc": "美国政府债券指数,有1年期/5年期/10年期,代表的是美国政府的信用水平,如果信用水平下降,则有预期政府会收紧货币",
+                "cn_name": "标普美国国库券债券指数"
+            }
+        ]
+    },
+    {
+        "theme": "NewsRelation",
+        "cn_name": "消息面",
+        "desc": "好的消息技术创新是预测板块未来走势的重要指标,如果某板块因为重要技术突破,未来股价会快速上升",
+        "list": [
+            {
+                "theme": "TechNewsRelation",
+                "cn_name": "科技消息面",
+                "desc": "科技消息面是预测科技板块未来走势的重要指标,如果某板块因为重要技术突破,未来股价会快速上升",
+                "list": [
+                    {
+                        "name": "工信部新闻",
+                        "cn_name": "科技新闻"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "theme": "StockPick",
+        "cn_name": "选股",
+        "desc": "从技术面和基本面分析,从板块中选择出潜力最高的股票",
+        "list": [
+            {
+                "akshare_board":"stock_board_industry_name_em",
+                "name": "stock_research_report",
+                "desc": "按照股票代码,查看该股票的研报分析,如果该股票的研报分析多,则表示机构更关注该股,具有较高的潜力",
+                "cn_name": "研报分析"
+            }
+        ]
+    }
+]
