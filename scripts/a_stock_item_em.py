@@ -6,9 +6,12 @@ def init(script,handler,depend):
 
 def depend_run(script,handler,depend):
     # 按依赖运行,
-    return ak.stock_info_a_code_name()
+    return None
 
-def print_a_stock_item_em(script,handler):
-    print(ak.stock_individual_info_em(symbol="000001").set_index('item')['value'].to_frame().T)
+
+
+def print_a_stock_item_em(stack_code):
+    # 查看股票详情
+    print(ak.stock_individual_info_em(symbol=stack_code).set_index('item')['value'].to_frame().T)
     
 

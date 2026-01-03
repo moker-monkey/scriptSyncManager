@@ -38,7 +38,7 @@ class ScriptSchedule(SQLModel, table=True):
     
     class Config:
         """Pydantic配置"""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "示例脚本",
                 "period": "0 */6 * * *", 
