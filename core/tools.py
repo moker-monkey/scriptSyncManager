@@ -8,8 +8,10 @@ import pandas as pd
 from croniter import croniter
 import logging
 import json
+from sqlmodel import Session
 
 from .config import config
+from .models import ScriptSchedule
 
 
 def calculate_next_sync_time(
@@ -220,4 +222,74 @@ def has_saved_result(script_name: str) -> bool:
         json_file_path = data_dir / f"{script_name}.json"
         return json_file_path.exists()
     except Exception:
+        return False
+
+
+def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> ScriptSchedule:
+    """
+    获取或创建 ScriptSchedule 对象
+
+    Args:
+        script_name (str): 脚本名称
+        logger (logging.Logger): 日志记录器
+
+    Returns:
+        ScriptSchedule: 脚本调度对象
+    """
+    try:
+        # 获取数据库引擎
+        engines = config.init_db()
+        engine = engines["engine"]
+
+        with Session(engine) as session:
+            # 尝试查找现有的 ScriptSchedule
+            script_schedule = (
+                session.query(ScriptSchedule)
+                .filter(ScriptSchedule.name == script_name)
+                .first()
+            )
+
+            if script_schedule is None:
+                # 创建新的 ScriptSchedule
+                script_schedule = ScriptSchedule(
+                    name=script_name,
+                    period="",
+                    turn_on=False,
+                    remark=f"自动创建的脚本调度记录 - {script_name}",
+                )
+                session.add(script_schedule)
+                session.commit()
+                session.refresh(script_schedule)
+                logger.info(f"创建新的 ScriptSchedule: {script_name}")
+
+            return script_schedule
+
+    except Exception as e:
+        logger.error(f"获取或创建 ScriptSchedule 失败: {str(e)}")
+        # 返回一个基本的 ScriptSchedule 对象
+        return ScriptSchedule(name=script_name)
+
+
+def store_execution_result(script_name: str, result: Any, logger: logging.Logger) -> bool:
+    """
+    存储执行结果到数据库
+
+    Args:
+        script_name (str): 脚本名称
+        result (Any): 执行结果
+        logger (logging.Logger): 日志记录器
+
+    Returns:
+        bool: 是否存储成功
+    """
+    try:
+        engines = config.init_db()
+        engine = engines["script_engine"]
+
+        # 如果结果是 DataFrame，使用现有的 DataFrame 存储方法
+        if isinstance(result, pd.DataFrame):
+            return store_dataframe_to_db(result, script_name, engine, logger)
+
+    except Exception as e:
+        logger.error(f"存储执行结果失败: {str(e)}")
         return False

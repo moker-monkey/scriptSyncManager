@@ -16,7 +16,7 @@ import time
 
 from .config import config
 from .models import ScriptSchedule
-from .tools import calculate_next_sync_time, import_script, store_dataframe_to_db, save_result_to_json, load_result_from_json, get_script_result, has_saved_result
+from .tools import calculate_next_sync_time, import_script, store_dataframe_to_db, save_result_to_json, load_result_from_json, get_script_result, has_saved_result, get_or_create_script_schedule, store_execution_result
 
 
 class ScriptHandler:
@@ -89,7 +89,7 @@ class ScriptHandler:
         Returns:
             Dict[str, Any]: 执行结果
         """
-        return self._execute_script(script_name, 'iteration', type="iterator", config=config)
+        return self._execute_script(script_name, 'iteration', type="iterator", script_config=config)
 
     def retry_script(self, script_name: str) -> Dict[str, Any]:
         """
@@ -124,7 +124,7 @@ class ScriptHandler:
                 script_name=script_name,
                 func_name=func_name,
                 type="iterator",
-                config=config,
+                script_config=config,
                 is_exists=is_exists,
                 save_to_db=save_to_db,
                 depend_result=error_items
@@ -148,7 +148,7 @@ class ScriptHandler:
         type: Optional[Union['iterator', 'single']] = "single",
         is_exists: str = "append",
         depend_result: Optional[Dict[str, Any]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        script_config: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         执行脚本的指定函数
@@ -160,13 +160,13 @@ class ScriptHandler:
             is_exists (str): 表存在时的处理方式，默认是append
             depend_result (Optional[Dict[str, Any]]): 依赖函数的执行结果
             type (Optional[Union['iterator', 'single']]): 执行类型，默认是single
-            config (Optional[Dict[str, Any]]): 脚本配置（遍历时两次之间的时间间隔）
+            script_config (Optional[Dict[str, Any]]): 脚本配置（遍历时两次之间的时间间隔）
 
         Returns:
             Dict[str, Any]: 执行结果
         """
-        if not config:
-                config = {
+        if not script_config:
+                script_config = {
                     "interval": 4,
                     "is_error_stop": True,
                 }
@@ -175,74 +175,86 @@ class ScriptHandler:
             "success": False,
             "script_name": script_name,
             "func_name": func_name,
+            "type": type,
+            "config": script_config,
+            "is_exists": is_exists,
             "total_count": 0,
             "error_count": 0,
             "execution_time": datetime.now(),
             "finish_time": None,
             "error_items": [],
             "errors": [],
-            "type": type,
-            "config": config,
-            "is_exists": is_exists,
         }
 
+        # 确保 actual_script_name 始终被初始化
+        actual_script_name = str(script_name)
+
         try:
+            # 初始化数据库引擎
+            engines = config.init_db()
+            script_engine = engines["script_engine"]
+            
             # 调用脚本模块的指定函数
             module = import_script(script_name, self.scripts_dir, self.logger)
             func = getattr(module, func_name)
-            script_schedule = self._get_or_create_script_schedule(script_name)
+            script_schedule = get_or_create_script_schedule(script_name, self.logger)
             
             depend_func = None
             if hasattr(module, 'depend'):
                 depend_func = getattr(module, 'depend')
                 if depend_result is None:
                     depend_result = depend_func(script_schedule, self)
+            
+            # 处理依赖结果
+            if depend_result is None:
+                depend_result = []
+            
             result["total_count"] = len(depend_result)
+            
             if type == "iterator":
                 if not isinstance(depend_result, list):
                     self.logger.error(f"脚本 {script_name} 的 depend 函数返回的结果不是列表")
-                    return {"success": False, "message": "depend 函数返回的结果不是列表"}
+                    result["success"] = False
+                    result["message"] = "depend 函数返回的结果不是列表"
+                    return result
+                
                 for item in depend_result:
                     self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次")
                     try:
-                        result = func(script_schedule, self, item)
-                        if result is None:
+                        func_result = func(script_schedule, self, item)
+                        if func_result is None:
                             self.logger.error(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次返回 None")
                             continue
                         
-                        # 保存执行结果到JSON文件
-                        actual_script_name = str(script_name.__name__) if hasattr(script_name, '__name__') else str(script_name)
-                        
-                        if save_to_db and result is not None:
-                            store_dataframe_to_db(result, table_name=script_name, engine=self.engine, logger=self.logger, is_exists="append")
+                        if save_to_db and func_result is not None:
+                            store_dataframe_to_db(func_result, table_name=script_name, engine=script_engine, logger=self.logger, is_exists="append")
 
-                        self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次结果: {result}")
-                        
+                        self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次结果: {func_result}")
                         
                     except Exception as e:
-                        self.logger.error(result)
-                        # 保存错误结果到JSON文件
-                        print(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次失败: {str(e)}")
+                        self.logger.error(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次失败: {str(e)}")
                         result["error_items"].append(item)
                         result["errors"].append(str(e))
-                        if config["is_error_stop"]:
+                        if script_config["is_error_stop"]:
                             break
-                    time.sleep(random.randint(1, config["interval"]))
+                    time.sleep(random.randint(1, script_config["interval"]))
                     
             else:
                 # 执行单例函数
-                result = func(script_schedule, self, depend_result)
-                self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行结果: {result}")
+                func_result = func(script_schedule, self, depend_result)
+                self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行结果: {func_result}")
 
                 # 如果需要，将结果存储到数据库
-                if save_to_db and result is not None:
-                    store_dataframe_to_db(result, table_name=script_name, engine=self.engine, logger=self.logger, is_exists=is_exists)
+                if save_to_db and func_result is not None:
+                    store_dataframe_to_db(func_result, table_name=script_name, engine=script_engine, logger=self.logger, is_exists=is_exists)
                     
                 result["success"] = True
+                result["message"] = "执行成功"
 
         except Exception as e:
             self.logger.error(f"执行脚本 {script_name} 的函数 {func_name} 失败: {str(e)}")
             result["errors"].append(str(e))
+            result["message"] = f"执行失败: {str(e)}"
             
         finally:
             # 保存最终结果到JSON文件
@@ -292,99 +304,6 @@ class ScriptHandler:
         )
 
         return scripts_info
-
-    def _get_or_create_script_schedule(self, script_name: str) -> ScriptSchedule:
-        """
-        获取或创建 ScriptSchedule 对象
-
-        Args:
-            script_name (str): 脚本名称
-
-        Returns:
-            ScriptSchedule: 脚本调度对象
-        """
-        try:
-            # 获取数据库引擎
-            engines = config.init_db()
-            engine = engines["engine"]
-
-            with Session(engine) as session:
-                # 尝试查找现有的 ScriptSchedule
-                script_schedule = (
-                    session.query(ScriptSchedule)
-                    .filter(ScriptSchedule.name == script_name)
-                    .first()
-                )
-
-                if script_schedule is None:
-                    # 创建新的 ScriptSchedule
-                    script_schedule = ScriptSchedule(
-                        name=script_name,
-                        period="",
-                        turn_on=False,
-                        remark=f"自动创建的脚本调度记录 - {script_name}",
-                    )
-                    session.add(script_schedule)
-                    session.commit()
-                    session.refresh(script_schedule)
-                    self.logger.info(f"创建新的 ScriptSchedule: {script_name}")
-
-                return script_schedule
-
-        except Exception as e:
-            self.logger.error(f"获取或创建 ScriptSchedule 失败: {str(e)}")
-            # 返回一个基本的 ScriptSchedule 对象
-            return ScriptSchedule(name=script_name)
-
-    def _store_execution_result(self, script_name: str, result: Any) -> bool:
-        """
-        存储执行结果到数据库
-
-        Args:
-            script_name (str): 脚本名称
-            result (Any): 执行结果
-            script_schedule (ScriptSchedule): 脚本调度对象
-
-        Returns:
-            bool: 是否存储成功
-        """
-        try:
-            engines = config.init_db()
-            engine = engines["script_engine"]
-
-            # 如果结果是 DataFrame，使用现有的 DataFrame 存储方法
-            if isinstance(result, pd.DataFrame):
-                return store_dataframe_to_db(result, script_name, engine, self.logger)
-
-        except Exception as e:
-            self.logger.error(f"存储执行结果失败: {str(e)}")
-            return False
-
-    def _serialize_for_json(self, obj):
-        """
-        将对象转换为JSON可序列化的格式
-
-        Args:
-            obj: 要序列化的对象
-
-        Returns:
-            JSON可序列化的对象
-        """
-        import pandas as pd
-        from datetime import datetime, date
-
-        if isinstance(obj, dict):
-            return {key: self._serialize_for_json(value) for key, value in obj.items()}
-        elif isinstance(obj, list):
-            return [self._serialize_for_json(item) for item in obj]
-        elif isinstance(obj, (datetime, pd.Timestamp)):
-            return obj.isoformat()
-        elif isinstance(obj, date):
-            return obj.isoformat()
-        elif pd.isna(obj):
-            return None
-        else:
-            return obj
 
     def convert_menu(self, menu_path: str = None) -> Dict[str, Any]:
         """

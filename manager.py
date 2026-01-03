@@ -5,10 +5,11 @@
 用于管理脚本的执行和测试
 
 使用方法:
-    python manager.py run <script_name> [options]
-    python manager.py test <script_name> [options]
-    python manager.py ls [options]
-    python manager.py --help
+    python manager.py run <script_name> [options]  运行指定脚本
+    python manager.py test <script_name> [options]  测试指定脚本
+    python manager.py ls [options]  列出所有脚本
+    python manager.py pf <script_name> [options]  列出脚本中的所有函数
+    python manager.py --help  显示帮助信息
 """
 
 import sys
@@ -45,7 +46,7 @@ class Manager:
 
         Args:
             script_name (str): 脚本名称（不含.py扩展名）
-            func_name (Optional[str]): 要执行的函数名称，默认为main或run
+            func_name (Optional[str]): 要执行的函数名称，默认为main或run，最后尝试init
             save_to_db (bool): 是否保存结果到数据库
             verbose (bool): 是否显示详细输出
 
@@ -60,7 +61,7 @@ class Manager:
         print("-" * 50)
 
         try:
-            result = self.handler.execute_script(
+            result = self.handler._execute_script(
                 script_name=script_name, func_name=func_name, save_to_db=save_to_db
             )
 
@@ -154,12 +155,8 @@ class Manager:
         print(f"   状态: {'成功' if result['success'] else '失败'}")
         print(f"   消息: {result['message']}")
 
-        if result["data_stored"]:
-            print("   数据库: ✅ 已存储")
-        else:
-            print("   数据库: ❌ 未存储")
 
-        if verbose and result["result"] is not None:
+        if verbose and "result" in result and result["result"] is not None:
             print("   结果详情:")
             if (
                 hasattr(result["result"], "__len__")
@@ -332,7 +329,7 @@ def main():
         if args.command == "run":
             result = manager.run(
                 script_name=args.script_name,
-                func_name=args.func_name or "init",
+                func_name=args.func_name,
                 save_to_db=not args.no_db,
                 verbose=args.verbose,
             )
