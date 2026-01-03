@@ -1,5 +1,7 @@
 .history
 .pyc
+.env
+.trae
 # 通用文件
 .DS_Store
 Thumbs.db

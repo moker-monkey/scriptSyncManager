@@ -16,6 +16,7 @@ import time
 
 from .config import config
 from .models import ScriptSchedule
+from .tools import calculate_next_sync_time, import_script, store_dataframe_to_db, save_result_to_json, load_result_from_json, get_script_result, has_saved_result
 
 
 class ScriptHandler:
@@ -49,96 +50,7 @@ class ScriptHandler:
 
         return logger
 
-    def _calculate_next_sync_time(
-        self, last_sync_time: datetime, cron_expression: str
-    ) -> Optional[datetime]:
-        """
-        根据上次执行时间和crontab表达式计算下次执行时间
 
-        Args:
-            last_sync_time (datetime): 上次执行时间
-            cron_expression (str): crontab表达式
-
-        Returns:
-            Optional[datetime]: 下次执行时间，计算失败返回None
-        """
-        if not cron_expression:
-            self.logger.error("crontab表达式为空")
-            return None
-        try:
-            # 使用croniter解析表达式并计算下次执行时间
-            cron = croniter(cron_expression, last_sync_time)
-            next_time = cron.get_next(datetime)
-            return next_time
-        except Exception as e:
-            self.logger.error(f"计算下次执行时间失败: {str(e)}")
-            return None
-
-    def _import_script(self, script_name: str) -> Any:
-        """
-        动态导入脚本模块
-
-        Args:
-            script_name (str): 脚本名称（不含.py扩展名）
-
-        Returns:
-            Any: 导入的模块
-
-        Raises:
-            ImportError: 脚本文件不存在或导入失败
-        """
-        script_file = self.scripts_dir / f"{script_name}.py"
-
-        if not script_file.exists():
-            raise FileNotFoundError(f"脚本文件不存在: {script_file}")
-
-        # 动态导入脚本
-        spec = importlib.util.spec_from_file_location(script_name, script_file)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"无法加载脚本规范: {script_name}")
-
-        module = importlib.util.module_from_spec(spec)
-
-        # 添加脚本目录到Python路径
-        if str(self.scripts_dir) not in sys.path:
-            sys.path.insert(0, str(self.scripts_dir))
-
-        try:
-            spec.loader.exec_module(module)
-            self.logger.info(f"成功导入脚本: {script_name}")
-            return module
-        except Exception as e:
-            self.logger.error(f"导入脚本失败 {script_name}: {str(e)}")
-            raise ImportError(f"导入脚本失败 {script_name}: {str(e)}")
-
-    def _store_dataframe_to_db(self, df: pd.DataFrame, table_name: str, engine, is_exists: str = "append") -> bool:
-        """
-        将DataFrame存储到数据库
-
-        Args:
-            df (pd.DataFrame): 要存储的数据
-            table_name (str): 表名
-            engine: 数据库引擎
-            is_exists (str): 表存在时的处理方式，默认是append
-
-        Returns:
-            bool: 是否存储成功
-        """
-        try:
-            # 将DataFrame写入数据库，如果表已存在则替换
-            df.to_sql(
-                name=table_name,
-                con=engine,
-                if_exists=is_exists,
-                index=False,
-            )
-            records = len(df)
-            self.logger.info(f"成功存储 {records} 条记录到表 {table_name}")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"存储DataFrame到数据库失败: {str(e)}")
-            return False
     
     def test_script(self, script_name: str) -> Dict[str, Any]:
         """
@@ -191,7 +103,7 @@ class ScriptHandler:
         """
         try:
             # 1. 先读取result JSON的数据
-            result = self.get_script_result(script_name)
+            result = get_script_result(script_name, self.logger)
             if not result:
                 self.logger.error(f"无法读取脚本 {script_name} 的历史执行数据")
                 return {
@@ -233,7 +145,7 @@ class ScriptHandler:
         script_name: Any,
         func_name: str,
         save_to_db: bool = True,
-        type: Optional['iterator' | 'single'] = "single",
+        type: Optional[Union['iterator', 'single']] = "single",
         is_exists: str = "append",
         depend_result: Optional[Dict[str, Any]] = None,
         config: Optional[Dict[str, Any]] = None,
@@ -247,7 +159,7 @@ class ScriptHandler:
             save_to_db (bool): 是否将结果存储到数据库
             is_exists (str): 表存在时的处理方式，默认是append
             depend_result (Optional[Dict[str, Any]]): 依赖函数的执行结果
-            type (Optional['iterator' | 'single']): 执行类型，默认是single
+            type (Optional[Union['iterator', 'single']]): 执行类型，默认是single
             config (Optional[Dict[str, Any]]): 脚本配置（遍历时两次之间的时间间隔）
 
         Returns:
@@ -276,7 +188,7 @@ class ScriptHandler:
 
         try:
             # 调用脚本模块的指定函数
-            module = self._import_script(script_name)
+            module = import_script(script_name, self.scripts_dir, self.logger)
             func = getattr(module, func_name)
             script_schedule = self._get_or_create_script_schedule(script_name)
             
@@ -302,7 +214,7 @@ class ScriptHandler:
                         actual_script_name = str(script_name.__name__) if hasattr(script_name, '__name__') else str(script_name)
                         
                         if save_to_db and result is not None:
-                            self._store_dataframe_to_db(result, table_name=script_name, engine=self.engine, is_exists="append")
+                            store_dataframe_to_db(result, table_name=script_name, engine=self.engine, logger=self.logger, is_exists="append")
 
                         self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行第 {item} 次结果: {result}")
                         
@@ -324,7 +236,7 @@ class ScriptHandler:
 
                 # 如果需要，将结果存储到数据库
                 if save_to_db and result is not None:
-                    self._store_dataframe_to_db(result, table_name=script_name, engine=self.engine, is_exists=is_exists)
+                    store_dataframe_to_db(result, table_name=script_name, engine=self.engine, logger=self.logger, is_exists=is_exists)
                     
                 result["success"] = True
 
@@ -336,7 +248,7 @@ class ScriptHandler:
             # 保存最终结果到JSON文件
             result["error_count"] = len(result["errors"])
             result["finish_time"] = datetime.now()
-            self._save_result_to_json(actual_script_name, result)
+            save_result_to_json(actual_script_name, result, self.logger)
             return result
 
     def list_available_scripts(self) -> Dict[str, Any]:
@@ -442,63 +354,11 @@ class ScriptHandler:
 
             # 如果结果是 DataFrame，使用现有的 DataFrame 存储方法
             if isinstance(result, pd.DataFrame):
-                return self._store_dataframe_to_db(result, script_name, engine)
+                return store_dataframe_to_db(result, script_name, engine, self.logger)
 
         except Exception as e:
             self.logger.error(f"存储执行结果失败: {str(e)}")
             return False
-
-    def _log_execution_result(self, script_name: str, result: Any) -> None:
-        """
-        将执行结果记录到日志文件
-
-        Args:
-            script_name (str): 脚本名称
-            result (Any): 执行结果
-        """
-        try:
-
-            # 创建日志目录
-            log_dir = config.get_script_log_dir(script_name)
-            os.makedirs(log_dir, exist_ok=True)
-
-            # 生成日志文件名（按日期）
-            log_file = os.path.join(
-                log_dir, f"execution_{datetime.now().strftime('%Y%m%d')}.log"
-            )
-
-            # 准备日志内容
-            log_entry = {
-                "timestamp": datetime.now().isoformat(),
-                "script_name": script_name,
-                "execution_time": datetime.now().isoformat(),
-                "result_type": type(result).__name__,
-                "result_summary": (
-                    str(result)[:500] if result is not None else None
-                ),  # 限制长度
-                "success": True,
-            }
-
-            # 尝试将结果转换为 JSON
-            try:
-                if hasattr(result, "to_dict"):
-                    # 处理 DataFrame，转换时间戳
-                    result_dict = result.to_dict()
-                    # 递归处理可能的时间戳对象
-                    log_entry["result_data"] = self._serialize_for_json(result_dict)
-                elif isinstance(result, (dict, list)):
-                    log_entry["result_data"] = self._serialize_for_json(result)
-                else:
-                    log_entry["result_data"] = str(result)
-            except Exception as e:
-                log_entry["result_data"] = f"无法序列化的结果: {str(e)}"
-
-            # 写入日志文件
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-
-        except Exception as e:
-            self.logger.error(f"记录执行日志失败: {str(e)}")
 
     def _serialize_for_json(self, obj):
         """
@@ -525,101 +385,6 @@ class ScriptHandler:
             return None
         else:
             return obj
-
-    def _save_result_to_json(self, script_name: str, result: Any) -> bool:
-        """
-        将脚本执行结果保存为JSON文件
-
-        Args:
-            script_name (str): 脚本名称，用作文件名
-            result (Any): 要保存的执行结果
-
-        Returns:
-            bool: 是否保存成功
-        """
-        try:
-            # 创建数据目录（如果不存在）
-            data_dir = Path(config.base_dir) / "data" / script_name
-            data_dir.mkdir(parents=True, exist_ok=True)
-
-            # 生成JSON文件路径
-            json_file_path = data_dir / f"{script_name}.json"
-
-            # 保存为JSON文件
-            with open(json_file_path, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2, default=str)
-
-            self.logger.info(f"成功将脚本 {script_name} 的执行结果保存到: {json_file_path}")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"保存脚本 {script_name} 执行结果到JSON文件失败: {str(e)}")
-            return False
-
-    def _load_result_from_json(self, script_name: str) -> Optional[Dict[str, Any]]:
-        """
-        从JSON文件中读取脚本执行结果
-
-        Args:
-            script_name (str): 脚本名称，用作文件名
-
-        Returns:
-            Optional[Dict[str, Any]]: 读取到的执行结果和元数据字典，如果读取失败返回None
-                包含键: result(执行结果), script_name(脚本名称), execution_time(执行时间), result_type(结果类型)
-        """
-        try:
-            # 生成JSON文件路径
-            data_dir = Path(config.base_dir) / "data" / script_name
-            json_file_path = data_dir / f"{script_name}_result.json"
-
-            # 检查文件是否存在
-            if not json_file_path.exists():
-                self.logger.warning(f"脚本 {script_name} 的JSON文件不存在: {json_file_path}")
-                return None
-
-            # 从JSON文件读取数据
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                saved_data = json.load(f)
-            
-            self.logger.info(f"成功从JSON文件读取脚本 {script_name} 的执行结果")
-            return saved_data
-
-        except json.JSONDecodeError as e:
-            self.logger.error(f"解析脚本 {script_name} 的JSON文件失败: {str(e)}")
-            return None
-        except Exception as e:
-            self.logger.error(f"读取脚本 {script_name} 的执行结果失败: {str(e)}")
-            return None
-
-    def get_script_result(self, script_name: str) -> Optional[Any]:
-        """
-        获取脚本的最新执行结果（便捷方法）
-
-        Args:
-            script_name (str): 脚本名称
-
-        Returns:
-            Optional[Any]: 脚本执行结果，如果不存在或读取失败返回None
-        """
-        result = self._load_result_from_json(script_name)
-        return result
-
-    def has_saved_result(self, script_name: str) -> bool:
-        """
-        检查脚本是否有保存的执行结果
-
-        Args:
-            script_name (str): 脚本名称
-
-        Returns:
-            bool: 是否有保存的结果
-        """
-        try:
-            data_dir = Path(config.base_dir) / "data" / script_name
-            json_file_path = data_dir / f"{script_name}.json"
-            return json_file_path.exists()
-        except Exception:
-            return False
 
     def convert_menu(self, menu_path: str = None) -> Dict[str, Any]:
         """

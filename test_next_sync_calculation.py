@@ -5,11 +5,13 @@
 """
 
 import sys
+import logging
 from datetime import datetime
 
 # 添加项目根目录到Python路径
 sys.path.append('/Users/xiaochangming/Desktop/agent-trade/scriptSyncManager')
 
+from core.tools import calculate_next_sync_time
 from core.handler import ScriptHandler
 
 def test_calculate_next_sync_time():
@@ -19,7 +21,10 @@ def test_calculate_next_sync_time():
     print("开始测试计算下次执行时间的功能...")
     print("=" * 50)
     
+    # 获取logger
     handler = ScriptHandler()
+    logger = handler._setup_logger()
+    
     current_time = datetime.now()
     
     # 测试用例：不同的crontab表达式
@@ -40,7 +45,7 @@ def test_calculate_next_sync_time():
         print(f"当前时间: {current_time}")
         
         try:
-            next_time = handler._calculate_next_sync_time(current_time, cron_expr)
+            next_time = calculate_next_sync_time(current_time, cron_expr, logger)
             if next_time:
                 print(f"下次执行时间: {next_time}")
                 print(f"时间差: {next_time - current_time}")

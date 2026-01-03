@@ -7,7 +7,7 @@
 使用方法:
     python manager.py run <script_name> [options]
     python manager.py test <script_name> [options]
-    python manager.py list [options]
+    python manager.py ls [options]
     python manager.py --help
 """
 
