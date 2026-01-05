@@ -1,17 +1,76 @@
 import akshare as ak
 
-
-
-
 def init(script, handler, depend):
     """
     初始化函数，用于初始化银行间同业拆借利率
     """
-
     rate_interbank_df = ak.rate_interbank(
         market="上海银行同业拆借市场", symbol="Shibor人民币", indicator="3月"
     )
     return rate_interbank_df
+
+def depend(script, handler):
+    """
+    依赖函数，用于依赖银行间同业拆借利率
+    """
+    return get_foucs_params()
+
+def iteration(script, handler, depend_item):
+    """
+    遍历函数，用于遍历银行间同业拆借利率的参数
+    """
+    market = depend_item["market"]
+    symbol = depend_item["symbol"]
+    indicator = depend_item["indicator"]
+    rate_interbank_df = ak.rate_interbank(market=market, symbol=symbol, indicator=indicator)
+    # 添加参数列
+    rate_interbank_df["market"] = market
+    rate_interbank_df["symbol"] = symbol
+    rate_interbank_df["indicator"] = indicator
+    return rate_interbank_df
+
+def example(script, handler, depend_item):
+    """
+    示例函数，用于示例银行间同业拆借利率的参数
+    """
+    depend_item = depend(script, handler)[0]
+    market = depend_item["market"]
+    symbol = depend_item["symbol"]
+    indicator = depend_item["indicator"]
+    rate_interbank_df = ak.rate_interbank(market=market, symbol=symbol, indicator=indicator)
+    # 添加参数列
+    rate_interbank_df["market"] = market
+    rate_interbank_df["symbol"] = symbol
+    rate_interbank_df["indicator"] = indicator
+    return rate_interbank_df
+
+def search_params(market, symbol, indicator):
+    """
+    搜索参数函数，用于搜索银行间同业拆借利率的参数
+    """
+    params_list = get_foucs_params()
+    for params in params_list:
+        if params["market"] == market and params["symbol"] == symbol and params["indicator"] == indicator:
+            return params
+    return None
+
+def get_foucs_params():
+    return [
+        {"market": "上海银行同业拆借市场", "symbol": "Shibor人民币", "indicator": "隔夜"},
+        {"market": "上海银行同业拆借市场", "symbol": "Shibor人民币", "indicator": "3月"},
+        {"market": "上海银行同业拆借市场", "symbol": "Shibor人民币", "indicator": "1年"},
+         {"market": "伦敦银行同业拆借市场", "symbol": "Libor英镑", "indicator": "3月"},
+         {"market": "伦敦银行同业拆借市场", "symbol": "Libor美元", "indicator": "3月"},
+         {"market": "欧洲银行同业拆借市场", "symbol": "Euribor欧元", "indicator": "1周"},
+         {"market": "欧洲银行同业拆借市场", "symbol": "Euribor欧元", "indicator": "3月"},
+         {"market": "欧洲银行同业拆借市场", "symbol": "Euribor欧元", "indicator": "1年"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor港币", "indicator": "隔夜"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor港币", "indicator": "3月"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor港币", "indicator": "1年"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor人民币", "indicator": "隔夜"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor人民币", "indicator": "3月"},
+         {"market": "香港银行同业拆借市场", "symbol": "Hibor人民币", "indicator": "1年"},
+    ]
 
 def print_params(script, handler, depend):
     """

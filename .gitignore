@@ -1,7 +1,13 @@
 .history
+.venv
 .pyc
 .env
+.trae/
 .trae/*
+scripts/*
+test/
+logs/
+test/*
 # 通用文件
 .DS_Store
 Thumbs.db

@@ -18,6 +18,13 @@ def depend(script_schedule, self):
         {"id": 3, "name": "数据3", "should_fail": True},  # 这个会失败
         {"id": 4, "name": "数据4", "should_fail": False},
         {"id": 5, "name": "数据5", "should_fail": False},
+        {"id": 6, "name": "数据6", "should_fail": False},
+        {"id": 7, "name": "数据7", "should_fail": False},
+        {"id": 8, "name": "数据8", "should_fail": False},
+        {"id": 9, "name": "数据9", "should_fail": False},
+        {"id": 10, "name": "数据10", "should_fail": False},
+        {"id": 11, "name": "数据11", "should_fail": False},
+        {"id": 12, "name": "数据12", "should_fail": False},
     ]
 
 

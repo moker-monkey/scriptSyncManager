@@ -1,9 +1,10 @@
 from sqlmodel import SQLModel, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
+from sqlalchemy import JSON
 
 
-class ScriptSchedule(SQLModel, table=True):
+class ScriptMenu(SQLModel, table=True):
     """
     脚本调度模型
     用于存储脚本的调度配置和同步状态信息

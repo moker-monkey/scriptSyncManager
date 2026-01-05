@@ -11,7 +11,7 @@ import json
 from sqlmodel import Session
 
 from .config import config
-from .models import ScriptSchedule
+from .models import ScriptMenu
 
 
 def calculate_next_sync_time(
@@ -142,7 +142,7 @@ def save_result_to_json(script_name: str, result: Any, logger: logging.Logger) -
         data_dir.mkdir(parents=True, exist_ok=True)
 
         # 生成JSON文件路径
-        json_file_path = data_dir / f"{script_name}.json"
+        json_file_path = data_dir / f"{script_name}_result.json"
 
         # 保存为JSON文件
         with open(json_file_path, 'w', encoding='utf-8') as f:
@@ -225,16 +225,16 @@ def has_saved_result(script_name: str) -> bool:
         return False
 
 
-def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> ScriptSchedule:
+def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> ScriptMenu:
     """
-    获取或创建 ScriptSchedule 对象
+    获取或创建 ScriptMenu 对象
 
     Args:
         script_name (str): 脚本名称
         logger (logging.Logger): 日志记录器
 
     Returns:
-        ScriptSchedule: 脚本调度对象
+        ScriptMenu: 脚本调度对象
     """
     try:
         # 获取数据库引擎
@@ -242,16 +242,16 @@ def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> S
         engine = engines["engine"]
 
         with Session(engine) as session:
-            # 尝试查找现有的 ScriptSchedule
+            # 尝试查找现有的 ScriptMenu
             script_schedule = (
-                session.query(ScriptSchedule)
-                .filter(ScriptSchedule.name == script_name)
+                session.query(ScriptMenu)
+                .filter(ScriptMenu.name == script_name)
                 .first()
             )
 
             if script_schedule is None:
-                # 创建新的 ScriptSchedule
-                script_schedule = ScriptSchedule(
+                # 创建新的 ScriptMenu
+                script_schedule = ScriptMenu(
                     name=script_name,
                     period="",
                     turn_on=False,
@@ -260,14 +260,14 @@ def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> S
                 session.add(script_schedule)
                 session.commit()
                 session.refresh(script_schedule)
-                logger.info(f"创建新的 ScriptSchedule: {script_name}")
+                logger.info(f"创建新的 ScriptMenu: {script_name}")
 
             return script_schedule
 
     except Exception as e:
-        logger.error(f"获取或创建 ScriptSchedule 失败: {str(e)}")
-        # 返回一个基本的 ScriptSchedule 对象
-        return ScriptSchedule(name=script_name)
+        logger.error(f"获取或创建 ScriptMenu 失败: {str(e)}")
+        # 返回一个基本的 ScriptMenu 对象
+        return ScriptMenu(name=script_name)
 
 
 def store_execution_result(script_name: str, result: Any, logger: logging.Logger) -> bool:

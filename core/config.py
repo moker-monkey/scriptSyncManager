@@ -1,7 +1,8 @@
 import os
-from typing import Dict, Any, Optional
-from sqlmodel import create_engine, SQLModel
-from .models import ScriptSchedule
+from typing import Dict, Any, Optional, List
+from sqlmodel import create_engine, SQLModel, Session, select
+from sqlmodel import text
+from .models import ScriptMenu
 
 
 class Config:
@@ -100,6 +101,56 @@ class Config:
         
         return True
 
+
+    def get_table_data(self, script_name: str,condtion:Dict[str,Any] = None,limit:int = None) -> Optional[List[Dict[str, Any]]]:
+        """
+        根据脚本名称获取对应的数据表
+        
+        Args:
+            script_name (str): 脚本名称
+            condtion (Dict[str,Any], optional): 查询条件，默认 None
+            limit (int, optional): 限制返回数据条数，默认 None（返回全部数据）
+            
+        Returns:
+            Optional[List[Dict[str, Any]]]: 包含表数据的列表，若不存在则返回 None
+        """
+        # 定义脚本与数据表的映射关系
+        # 直接以 script_name 作为表名，无需映射
+        print('get_table_data start')
+
+        table_name = script_name
+        
+        if not table_name:
+            return None
+            
+        try:
+            # 构建查询条件
+            if condtion:
+                condtion_str = " AND ".join([f"{k} = :{k}" for k in condtion.keys()])
+                where_clause = f" WHERE {condtion_str}"
+            else:
+                where_clause = ""
+                condtion = {}
+
+            # 构建LIMIT子句
+            limit_clause = f" LIMIT {limit}" if limit is not None else ""
+
+            # 从数据库查询数据
+            engine = self.init_db()["engine"]
+            with Session(engine) as session:
+                # 直接以原生 SQL 查询，无需模型定义
+                result = session.execute(
+                    text(f"SELECT * FROM {table_name}{where_clause}{limit_clause}"),
+                    condtion
+                )
+            # result 是 Row 对象列表，需转成 dict 列表
+            # 在 SQLAlchemy 2.0 中，Row 对象需要使用 _asdict() 方法转换为字典
+            return [row._asdict() for row in result] if result else None
+        except Exception as e:
+            # 处理数据库异常，如表不存在、锁定等情况
+            print(f"获取表 {table_name} 数据时发生错误: {e}")
+            return None
+
     def get_db_uri(self) -> str:
         """
         获取数据库连接字符串
@@ -161,7 +212,7 @@ class Config:
         )
 
         # 按需建表（使用具体模型类）
-        ScriptSchedule.metadata.create_all(engine)
+        ScriptMenu.metadata.create_all(engine)
 
         return {"engine": engine, "script_engine": script_engine}
     
@@ -189,18 +240,6 @@ class Config:
         """
         return f"{self._data_dir}/{script_name}"
     
-    def get_script_breakpoint_dir(self, script_name: str) -> str:
-        """
-        根据脚本名称返回对应的断点信息目录路径
-        
-        Args:
-            script_name (str): 脚本名称
-            
-        Returns:
-            str: 断点信息目录路径
-        """
-        breakpoint_dir = f"{self._base_dir}/breakpoints"
-        return f"{breakpoint_dir}/{script_name}"
 
     def create_directories(self) -> None:
         """

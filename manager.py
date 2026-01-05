@@ -6,6 +6,7 @@
 
 使用方法:
     python manager.py run <script_name> [options]  运行指定脚本
+    python manager.py retry <script_name> [options]  重试指定脚本
     python manager.py test <script_name> [options]  测试指定脚本
     python manager.py ls [options]  列出所有脚本
     python manager.py pf <script_name> [options]  列出脚本中的所有函数
@@ -14,7 +15,6 @@
 
 import sys
 import argparse
-import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -34,6 +34,45 @@ class Manager:
         """初始化管理器"""
         self.handler = ScriptHandler()
 
+    def run_init(self,script_name: str) -> Dict[str, Any]:
+        """
+        运行指定脚本的init函数
+
+        Args:
+            script_name (str): 脚本名称（不含.py扩展名）
+
+        Returns:
+            Dict[str, Any]: 执行结果
+        """
+        return self.handler._execute_script(script_name, 'init', type="single", is_exists="replace")
+
+    def run_iteration(self,script_name: str, interval: str = "1-5", is_error_stop: bool = True, save_to_db: bool = True) -> Dict[str, Any]:
+        """
+        运行指定脚本的iteration函数
+
+        Args:
+            script_name (str): 脚本名称（不含.py扩展名）
+            interval (str): 遍历时两次之间的时间间隔，支持范围值（如"1-5"）或固定值
+            is_error_stop (bool): 执行出错时是否停止，默认为True
+            save_to_db (bool): 是否保存结果到数据库
+
+        Returns:
+            Dict[str, Any]: 执行结果
+        """
+        # 使用默认配置字典，而不是Config对象
+        print(f"interval: {interval}, is_error_stop: {is_error_stop}, save_to_db: {save_to_db}")
+        script_config = {
+            "interval": interval,
+            "is_error_stop": is_error_stop,
+        }
+        return self.handler._execute_script(
+            script_name=script_name,
+            func_name='iteration',
+            type="iterator",
+            script_config=script_config,
+            save_to_db=save_to_db
+        )
+
     def run(
         self,
         script_name: str,
@@ -48,6 +87,8 @@ class Manager:
             script_name (str): 脚本名称（不含.py扩展名）
             func_name (Optional[str]): 要执行的函数名称，默认为main或run，最后尝试init
             save_to_db (bool): 是否保存结果到数据库
+            type (str): 执行类型，single或iterator，默认single
+            is_exists (str): 数据库中存在数据时的处理方式，replace或append，默认replace
             verbose (bool): 是否显示详细输出
 
         Returns:
@@ -60,11 +101,20 @@ class Manager:
         print(f"   执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("-" * 50)
 
+        # 执行脚本，支持多种函数名
         try:
+            # 如果没有指定函数名，尝试使用main或run，最后尝试init
+            if func_name is None:
+                # 如果没有找到任何候选函数，默认使用init
+                func_name = 'init'
+            
+            # 执行脚本
             result = self.handler._execute_script(
-                script_name=script_name, func_name=func_name, save_to_db=save_to_db
+                script_name=script_name,
+                func_name=func_name,
+                save_to_db=save_to_db,
+                type="single"
             )
-
             # 显示执行结果
             self._print_execution_result(result, verbose)
 
@@ -105,21 +155,12 @@ class Manager:
                     scripts_info["regular_scripts"] + scripts_info["test_scripts"]
                 )
                 title = "所有脚本"
-            elif filter_type == "regular":
-                display_scripts = scripts_info["regular_scripts"]
-                title = "常规脚本"
-            elif filter_type == "test":
-                display_scripts = scripts_info["test_scripts"]
-                title = "测试脚本"
-            else:
-                display_scripts = []
-                title = "未知类型"
 
             print(f"{title} (共 {len(display_scripts)} 个):")
             print()
 
             for i, script in enumerate(display_scripts, 1):
-                script_type = "🧪 测试" if script["is_test"] else "🚀 常规"
+                script_type = "🚀"
                 print(f"{i:2d}. {script_type} {script['name']}")
 
                 if verbose:
@@ -171,7 +212,9 @@ class Manager:
         print("-" * 50)
 
     def convert_menu(
-        self, menu_path: str = None, verbose: bool = False
+        self,
+        menu_path: str = None,
+        verbose: bool = False
     ) -> Dict[str, Any]:
         """
         将 Menu.json 转换为脚本调度配置并更新数据库
@@ -214,6 +257,45 @@ class Manager:
             print(f"❌ 转换失败: {str(e)}")
             return error_result
 
+    def retry(
+        self,
+        script_name: str,
+        verbose: bool = False
+    ) -> Dict[str, Any]:
+        """
+        重试指定脚本
+
+        Args:
+            script_name (str): 脚本名称（不含.py扩展名）
+            verbose (bool): 是否显示详细信息
+
+        Returns:
+            Dict[str, Any]: 执行结果
+        """
+        print(f"🔄 开始重试脚本: {script_name}")
+        print(f"   执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("-" * 50)
+
+        try:
+            result = self.handler.retry_script(script_name)
+
+            # 显示执行结果
+            self._print_execution_result(result, verbose)
+
+            return result
+
+        except Exception as e:
+            error_result = {
+                "success": False,
+                "script_name": script_name,
+                "execution_time": datetime.now(),
+                "result": None,
+                "message": f"重试失败: {str(e)}",
+            }
+
+            print(f"❌ 重试失败: {str(e)}")
+            return error_result
+
     def _print_convert_result(
         self, result: Dict[str, Any], verbose: bool = False
     ) -> None:
@@ -250,6 +332,61 @@ class Manager:
 
         print("-" * 50)
 
+def print_func(script_name: str) -> None:
+    """
+    打印脚本下的全部函数名称
+
+    Args:
+        script_name (str): 脚本名称
+    """
+    import inspect
+    import logging
+    from pathlib import Path
+    from core.tools import import_script
+    from core.config import config
+    
+    # 设置日志记录器
+    logger = logging.getLogger("print_func")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    
+    print(f"脚本名称: {script_name}")
+    print("=" * 50)
+    
+    try:
+        # 构建脚本目录路径
+        scripts_dir = Path(config.base_dir) / "scripts"
+        
+        # 导入脚本模块
+        module = import_script(script_name, scripts_dir, logger)
+        
+        # 获取脚本中的所有函数
+        functions = []
+        for name, obj in inspect.getmembers(module, inspect.isfunction):
+            # 过滤掉内置函数和私有函数（以下划线开头的函数）
+            if not name.startswith("_"):
+                # 获取函数签名
+                sig = inspect.signature(obj)
+                functions.append((name, sig))
+        
+        if not functions:
+            print("  该脚本中没有可执行的函数")
+        else:
+            print(f"  共找到 {len(functions)} 个函数:")
+            print("  " + "-" * 46)
+            for func_name, func_sig in functions:
+                # 检查是否是脚本的基本函数（init, period, depend, iteration）
+                is_basic_func = func_name in ["init", "period", "depend", "iteration"]
+                func_type = "[基础函数]" if is_basic_func else "[辅助函数]"
+                print(f"  {func_type} {func_name}{func_sig}")
+    
+    except FileNotFoundError:
+        print(f"  错误: 脚本 '{script_name}' 不存在")
+    except ImportError as e:
+        print(f"  错误: 导入脚本失败 - {str(e)}")
+    except Exception as e:
+        print(f"  错误: 处理脚本时发生异常 - {str(e)}")
+    
+    print("=" * 50)
 
 def create_parser() -> argparse.ArgumentParser:
     """
@@ -280,9 +417,13 @@ def create_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="运行指定脚本")
     run_parser.add_argument("script_name", help="脚本名称（不含.py扩展名）")
     run_parser.add_argument(
-        "--func", dest="func_name", help="要执行的函数名称（默认为main或run）"
+        "--func", dest="func_name", help="要执行的函数名称（不写默认为init）"
     )
-    run_parser.add_argument("--no-db", action="store_true", help="不保存结果到数据库")
+    run_parser.add_argument("--no-db", action="store_false", dest="save_to_db", help="不保存结果到数据库")
+    run_parser.add_argument("--init", action="store_true", help="执行init函数")
+    run_parser.add_argument("--iterator", action="store_true", help="执行iterator函数")
+    run_parser.add_argument("--interval", help="遍历时两次之间的时间间隔，支持范围值（如\"1-5\"）或固定值")
+    run_parser.add_argument("--no-error-stop", action="store_false", dest="is_error_stop", help="执行出错时不停止")
     run_parser.add_argument("-v", "--verbose", action="store_true", help="显示详细信息")
 
     # list 命令
@@ -298,15 +439,24 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     # convert-menu 命令
-    convert_menu_parser = subparsers.add_parser(
-        "convert-menu", help="将 Menu.json 转换为脚本调度配置"
-    )
+    convert_menu_parser = subparsers.add_parser("convert-menu", help="将 Menu.json 转换为脚本调度配置")
     convert_menu_parser.add_argument(
         "--menu-path", help="Menu.json 文件路径（默认为项目根目录的 Menu.json）"
     )
     convert_menu_parser.add_argument(
         "-v", "--verbose", action="store_true", help="显示详细信息"
     )
+    
+    # retry 命令
+    retry_parser = subparsers.add_parser("retry", help="重试指定脚本")
+    retry_parser.add_argument("script_name", help="脚本名称（不含.py扩展名）")
+    retry_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="显示详细信息"
+    )
+    
+    # print-func 命令
+    print_func_parser = subparsers.add_parser("pf", help="打印指定脚本的所有函数")
+    print_func_parser.add_argument("script_name", help="脚本名称（不含.py扩展名）")
 
     return parser
 
@@ -327,12 +477,23 @@ def main():
 
     try:
         if args.command == "run":
-            result = manager.run(
-                script_name=args.script_name,
-                func_name=args.func_name,
-                save_to_db=not args.no_db,
-                verbose=args.verbose,
-            )
+            # 根据是否执行init函数和iterator函数来调用不同的方法
+            if args.init:
+                result = manager.run_init(script_name=args.script_name)
+            elif args.iterator:
+                result = manager.run_iteration(
+                    script_name=args.script_name,
+                    interval=args.interval if args.interval else "1-5",
+                    is_error_stop=args.is_error_stop,
+                    save_to_db=args.save_to_db
+                )
+            else:
+                result = manager.run(
+                    script_name=args.script_name,
+                    func_name=args.func_name,
+                    save_to_db=args.save_to_db,
+                    verbose=args.verbose,
+                )
             # 根据执行结果设置退出码
             sys.exit(0 if result["success"] else 1)
 
@@ -346,6 +507,17 @@ def main():
             )
             # 根据转换结果设置退出码
             sys.exit(0 if result["success"] else 1)
+        
+        elif args.command == "retry":
+            result = manager.retry(
+                script_name=args.script_name, verbose=args.verbose
+            )
+            # 根据执行结果设置退出码
+            sys.exit(0 if result["success"] else 1)
+        
+        elif args.command == "pf":
+            print_func(args.script_name)
+            sys.exit(0)
 
     except KeyboardInterrupt:
         print("\n\n⚠️  操作被用户中断")

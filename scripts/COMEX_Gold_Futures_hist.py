@@ -8,8 +8,10 @@ def init(script, handler, depend):
     初始化函数，用于创建数据库表和插入初始数据
     """
     # COMEX黄金期货历史数据
-    futures_foreign_hist_df = ak.futures_foreign_hist(symbol="GC")
-    return futures_foreign_hist_df
+    # futures_foreign_hist_df = ak.futures_foreign_hist(symbol="GC")
+    symbol_list = get_symbol_list(script, handler)
+    print(symbol_list)
+    # return futures_foreign_hist_df
 
 
 def period(script, handler, depend):

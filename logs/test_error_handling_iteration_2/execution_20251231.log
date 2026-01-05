@@ -1,2 +1,0 @@
-{"timestamp": "2025-12-31T10:58:33.875296", "script_name": "test_error_handling_iteration_2", "execution_time": "2025-12-31T10:58:33.875298", "result_type": "dict", "result_summary": "{'result': '处理成功：正常元素3'}", "success": true, "result_data": {"result": "处理成功：正常元素3"}}
-{"timestamp": "2025-12-31T10:59:11.144069", "script_name": "test_error_handling_iteration_2", "execution_time": "2025-12-31T10:59:11.144071", "result_type": "dict", "result_summary": "{'result': '处理成功：正常元素3'}", "success": true, "result_data": {"result": "处理成功：正常元素3"}}
