@@ -11,7 +11,7 @@ import json
 from sqlmodel import Session
 
 from .config import config
-from .models import ScriptMenu
+from .models import ScriptSyncMenu
 
 
 def calculate_next_sync_time(
@@ -225,16 +225,16 @@ def has_saved_result(script_name: str) -> bool:
         return False
 
 
-def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> ScriptMenu:
+def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> ScriptSyncMenu:
     """
-    获取或创建 ScriptMenu 对象
+    获取或创建 ScriptSyncMenu 对象
 
     Args:
         script_name (str): 脚本名称
         logger (logging.Logger): 日志记录器
 
     Returns:
-        ScriptMenu: 脚本调度对象
+        ScriptSyncMenu: 脚本调度对象
     """
     try:
         # 获取数据库引擎
@@ -242,16 +242,16 @@ def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> S
         engine = engines["engine"]
 
         with Session(engine) as session:
-            # 尝试查找现有的 ScriptMenu
+            # 尝试查找现有的 ScriptSyncMenu
             script_schedule = (
-                session.query(ScriptMenu)
-                .filter(ScriptMenu.name == script_name)
+                session.query(ScriptSyncMenu)
+                .filter(ScriptSyncMenu.name == script_name)
                 .first()
             )
 
             if script_schedule is None:
-                # 创建新的 ScriptMenu
-                script_schedule = ScriptMenu(
+                # 创建新的 ScriptSyncMenu
+                script_schedule = ScriptSyncMenu(
                     name=script_name,
                     period="",
                     turn_on=False,
@@ -260,14 +260,14 @@ def get_or_create_script_schedule(script_name: str, logger: logging.Logger) -> S
                 session.add(script_schedule)
                 session.commit()
                 session.refresh(script_schedule)
-                logger.info(f"创建新的 ScriptMenu: {script_name}")
+                logger.info(f"创建新的 ScriptSyncMenu: {script_name}")
 
             return script_schedule
 
     except Exception as e:
-        logger.error(f"获取或创建 ScriptMenu 失败: {str(e)}")
-        # 返回一个基本的 ScriptMenu 对象
-        return ScriptMenu(name=script_name)
+        logger.error(f"获取或创建 ScriptSyncMenu 失败: {str(e)}")
+        # 返回一个基本的 ScriptSyncMenu 对象
+        return ScriptSyncMenu(name=script_name)
 
 
 def store_execution_result(script_name: str, result: Any, logger: logging.Logger) -> bool:

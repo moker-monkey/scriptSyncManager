@@ -235,7 +235,7 @@ class Manager:
         print("-" * 50)
 
         try:
-            result = self.handler.convert_menu(menu_path)
+            result = config.convert_menu(menu_path)
 
             # 显示转换结果
             self._print_convert_result(result, verbose)
