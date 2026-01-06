@@ -80,7 +80,6 @@ class ScriptHandler:
                 script_name=script_name,
                 func_name=func_name,
                 type="iterator",
-                script_config=result.get("script_config"),
                 is_exists=result.get("is_exists"),
                 save_to_db=result.get("save_to_db"),
                 start_index=result.get("success_count"),
@@ -88,6 +87,9 @@ class ScriptHandler:
                 error_items=result.get("error_items"),
                 errors=result.get("errors"),
                 error_start_index=result.get("error_start_index"),
+                iterator_single_result=result.get("iterator_single_result"),
+                interval=result.get("interval"),
+                is_error_stop=result.get("is_error_stop"),
             )
             
             self.logger.info(f"脚本 {script_name} 重试完成，执行结果: {'成功' if result.get('success') else '失败'}")
@@ -104,16 +106,18 @@ class ScriptHandler:
         self,
         script_name: Any,
         func_name: str,
+        type: Optional[Union['iterator', 'single', 'iterator_single']] = "single",
         save_to_db: bool = True,
-        type: Optional[Union['iterator', 'single']] = "single",
         is_exists: str = "append",
         depend_result: Optional[Dict[str, Any]] = None,
-        script_config: Optional[Dict[str, Any]] = None,
         start_index: int = 0,
         total_count: int = 0,
         error_items: Optional[List[Dict[str, Any]]] = [],
         errors: Optional[List[str]] = [],
-        error_start_index: int = 0
+        error_start_index: int = 0,
+        iterator_single_result: Optional[pd.DataFrame] = None,
+        interval: int = 1,
+        is_error_stop: bool = True,
     ) -> Dict[str, Any]:
         """
         执行脚本的指定函数
@@ -124,29 +128,24 @@ class ScriptHandler:
             save_to_db (bool): 是否将结果存储到数据库
             is_exists (str): 表存在时的处理方式，默认是append
             depend_result (Optional[Dict[str, Any]]): 依赖函数的执行结果
-            type (Optional[Union['iterator', 'single']]): 执行类型，默认是single
-            script_config (Optional[Dict[str, Any]]): 脚本配置（遍历时两次之间的时间间隔）
+            type (Optional[Union['iterator', 'single', 'iterator_single']]): 执行类型，默认是single
             start_index (int): 开始索引，默认是0
             total_count (int): 总数量，默认是0
             error_count (int): 错误数量，默认是0
             error_start_index (int): 错误开始索引，默认是0,用于错误信息中断记录
+            iterator_single_result (Optional[pd.DataFrame]): 迭代单例函数的结果，默认是None
+            interval (int): 遍历时两次之间的时间间隔，默认是1秒
+            is_error_stop (bool): 是否在遇到错误时停止执行，默认是True
 
         Returns:
             Dict[str, Any]: 执行结果
         """
-        if script_config is None:
-                script_config = {
-                    "interval": 4,
-                    "is_error_stop": True,
-                }
-
         result = {
             "success": False,
             "script_name": script_name,
             "func_name": func_name,
             "save_to_db": save_to_db,
             "type": type,
-            "script_config": script_config,
             "is_exists": is_exists,
             "total_count": total_count,
             "success_count": start_index,
@@ -155,6 +154,9 @@ class ScriptHandler:
             "error_items": error_items.copy() if isinstance(error_items, list) else [],
             "errors": errors.copy() if isinstance(errors, list) else [],
             "error_start_index": error_start_index,
+            "interval": interval,
+            "is_error_stop": is_error_stop,
+            "iterator_single_result": iterator_single_result,
         }
 
         # 确保 actual_script_name 始终被初始化
@@ -181,13 +183,13 @@ class ScriptHandler:
             
             result["total_count"] = total_count or len(depend_result)
             
-            if type == "iterator":
+            if type == "iterator" or type == "iterator_single":
                 error_items = result.get("error_items")
                 # 此处的bug为，既要恢复错误项，又要处理中断，两者会有重叠的部分
                 # 处理中断是从success_count开始的,但是报错的是success_count+1
                 # 因此，当我处理错误时会将success_count+1也处理，再从中断处继续执行就导致了重复执行
                 # 为此，如果is_error_stop为False，我就不处理错误项，只处理中断项
-                if not script_config.get("is_error_stop") and len(error_items):
+                if not result.get("is_error_stop") and len(error_items):
                     for index, error_item in enumerate(error_items):
                         # 如果存在error_items，会先处理错误项
                         if result["error_start_index"] >= index:
@@ -220,7 +222,7 @@ class ScriptHandler:
                     result["message"] = "depend 函数返回的结果不是列表"
                     return result
                 depend_result = depend_result[result["success_count"]:]
-                if script_config.get("is_error_stop"):
+                if result.get("is_error_stop"):
                     result["error_start_index"] = []
                     result["error_items"] = []
                     result["error_start_index"] = 0
@@ -240,18 +242,26 @@ class ScriptHandler:
                             self.logger.error(f"脚本 {script_name} 的函数 {func_name} 执行第 {result['success_count']} 次返回 None")
                         else:
                             if save_to_db:
-                                store_dataframe_to_db(func_result, table_name=script_name, engine=script_engine, logger=self.logger, is_exists="append")
+                                if type == "iterator":
+                                    store_dataframe_to_db(func_result, table_name=script_name, engine=script_engine, logger=self.logger, is_exists="append")
+                                elif type == "iterator_single":
+                                    # 会合并到一个dataframe中，在遍历完成后存储到数据库
+                                    if result["success_count"] == 0:
+                                        result["iterator_single_result"] = func_result
+                                    else:
+                                        result["iterator_single_result"] = pd.concat([result["iterator_single_result"], func_result], ignore_index=True)
+                            
                             self.logger.info(f"脚本 {script_name} 的函数 {func_name} 执行第 {result['success_count']} 次结果: {func_result}")
                         
                     except Exception as e:
                         self.logger.error(f"脚本 {script_name} 的函数 {func_name} 执行第 {result['success_count']} 次失败: {str(e)}")
                         result["error_items"].append(item)
                         result["errors"].append(str(e))
-                        if script_config["is_error_stop"]:
+                        if result.get("is_error_stop"):
                             break
 
                     result["success_count"] += 1
-                    interval_val = script_config["interval"]
+                    interval_val = result["interval"]
                     if isinstance(interval_val, str) and "-" in interval_val:
                         start, end = map(int, interval_val.split("-"))
                         sleep_time = random.randint(start, end)
@@ -260,6 +270,10 @@ class ScriptHandler:
                     time.sleep(sleep_time)
                 result["success"] = True
                 result["message"] = "执行成功"
+                if type == "iterator_single" and result["success_count"] > 0:
+                    # 遍历完成后，将结果存储到数据库
+                    store_dataframe_to_db(result["iterator_single_result"], table_name=script_name, engine=script_engine, logger=self.logger, is_exists="replace")
+
             else:
                 # 执行单例函数
                 func_result = func(script_schedule, self, depend_result)

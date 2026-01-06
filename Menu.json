@@ -68,38 +68,29 @@
                 "cn_name": "UDI美元指数"
             },
             {
-                "theme": "SHIBOR",
-                "desc": "SHIBOR是一个反映上海市场银行间利率的指数,银行间利率越高,市场资金需求就越大,投资就越紧张",
-                "cn_name": "上海银行间利率",
-                "list": [
-                    {
-                        "name": "SHIBOR_overnight",
-                        "desc": "隔夜Shibor,表示1天内的银行间利率",
-                        "cn_name": "隔夜Shibor",
-                        "period": "every_WDay_11",
-                        "meta": {
-                            "akshare_api": "rate_interbank",
-                            "akshare_params": {
-                                "market": "上海银行同业拆借市场",
-                                "symbol": "Shibor人民币",
-                                "indicator": "隔夜"
-                            }
-                        }
-                    },
-                    {
-                        "name": "SHIBOR_7days",
-                        "desc": "7天Shibor,表示7天内的银行间利率",
-                        "cn_name": "7天Shibor",
-                        "meta": {
-                            "akshare_api": "rate_interbank",
-                            "akshare_params": {
-                                "market": "上海银行同业拆借市场",
-                                "symbol": "Shibor人民币",
-                                "indicator": "1周"
-                            }
-                        }
+                "name": "rate_interbank",
+                "desc": "银行间同业拆借利率是指银行之间进行拆借资金的利率,反映了市场资金供需的平衡状态",
+                "cn_name": "银行间同业拆借利率",
+                "interval": "5-10",
+                "is_error_stop": false,
+                "schedule":{
+                    "type": "iterator-single",
+                    "period": "every_wDay",
+                    "turn_on": true,
+                    "start_time": "09:00:00",
+                    "end_time": "17:00:00",
+                    "step": "1h",
+                    "is_auto_retry": true,
+                    "immediate_run": true
+                },
+                "meta": {
+                    "akshare_api": "rate_interbank",
+                    "akshare_params": {
+                        "market": "上海银行同业拆借市场",
+                        "symbol": "Shibor人民币",
+                        "indicator": "隔夜"
                     }
-                ]
+                }
             },
             {
                 "name": "SHIBOR",
@@ -240,7 +231,7 @@
         "desc": "从技术面和基本面分析,从板块中选择出潜力最高的股票",
         "list": [
             {
-                "akshare_board":"stock_board_industry_name_em",
+                "akshare_board": "stock_board_industry_name_em",
                 "name": "stock_research_report",
                 "desc": "按照股票代码,查看该股票的研报分析,如果该股票的研报分析多,则表示机构更关注该股,具有较高的潜力",
                 "cn_name": "研报分析"

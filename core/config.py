@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from sqlmodel import create_engine, Session, select
 from sqlmodel import text
-from .models import ScriptSyncMenu,ScriptSyncSchedule,ScriptSyncScheduleQueue
+from .models import ScriptSyncMenu,ScriptSyncSchedule
 
 
 class Config:
@@ -215,7 +215,6 @@ class Config:
         # 按需建表（使用具体模型类）
         ScriptSyncMenu.metadata.create_all(engine)
         ScriptSyncSchedule.metadata.create_all(engine)
-        ScriptSyncScheduleQueue.metadata.create_all(engine)
 
         return {"engine": engine, "script_engine": script_engine}
     
@@ -334,7 +333,7 @@ class Config:
                         .first()
                     )
 
-                    period_value = row.get("period", "")
+                    schedule = row.get("schedule")
 
                     if existing_menu and existing_schedule:
                         # 保留原有的 last_sync_datetime
@@ -345,13 +344,16 @@ class Config:
                         session.add(existing_menu)
 
                         # 更新 ScriptSyncSchedule
-                        existing_schedule.period = period_value
-                        existing_schedule.turn_on = row.get("turn_on", False)
-                        existing_schedule.next_sync_datetime = None  # 转换时重置
+                        existing_schedule.period = schedule.get("period", "")
+                        existing_schedule.turn_on = schedule.get("turn_on", False)
+                        existing_schedule.start_time = schedule.get("start_time", None)
+                        existing_schedule.end_time = schedule.get("end_time", None)
+                        existing_schedule.step = schedule.get("step", "")
+                        existing_schedule.immediate = schedule.get("immediate", False)
 
                         # 只在原值为空时才设置新的 last_sync_datetime
-                        if original_last_sync is None and row.get("last_sync_datetime"):
-                            existing_schedule.last_sync_datetime = row.get("last_sync_datetime")
+                        if original_last_sync is None and schedule.get("last_sync_datetime"):
+                            existing_schedule.last_sync_datetime = schedule.get("last_sync_datetime")
 
                         session.add(existing_schedule)
                         result["updated_items"] += 1
@@ -378,10 +380,13 @@ class Config:
 
                         new_schedule = ScriptSyncSchedule(
                             name=script_name,
-                            period=period_value,
-                            turn_on=row.get("turn_on", False),
+                            period=schedule.get("period", ""),
+                            turn_on=schedule.get("turn_on", False),
                             last_sync_datetime=None,  # 新记录没有最后同步时间
-                            next_sync_datetime=None,
+                            start_time=schedule.get("start_time", None),
+                            end_time=schedule.get("end_time", None),
+                            step=schedule.get("step", ""),
+                            immediate=schedule.get("immediate", False),
                         )
                         session.add(new_schedule)
                         result["created_items"] += 1
@@ -418,6 +423,44 @@ class Config:
             print(error_msg)
 
         return result
+    
+    def get_task_schedule_list(self) -> List[Dict[str, Any]]:
+        """
+        从数据库获取任务调度列表
+
+        Returns:
+            List[Dict[str, Any]]: 任务调度列表
+        """
+        try:
+            # 获取数据库连接
+            engines = self.init_db()
+            engine = engines["engine"]
+
+            with Session(engine) as session:
+                # 查询所有 ScriptSyncSchedule 记录
+                schedule_list = session.query(ScriptSyncSchedule).all()
+                
+                # 转换为字典列表
+                result = []
+                for schedule in schedule_list:
+                    # 将模型转换为字典
+                    schedule_dict = {
+                        "id": schedule.id,
+                        "name": schedule.name,
+                        "period": schedule.period,
+                        "turn_on": schedule.turn_on,
+                        "start_time": schedule.start_time,
+                        "end_time": schedule.end_time,
+                        "step": schedule.step,
+                        "immediate": schedule.immediate,
+                        "last_sync_datetime": schedule.last_sync_datetime.strftime("%Y-%m-%d %H:%M:%S") if schedule.last_sync_datetime else None,
+                    }
+                    result.append(schedule_dict)
+                
+                return result
+        except Exception as e:
+            print(f"获取任务调度列表时发生错误: {e}")
+            return []
 
 # 创建全局配置实例
 config = Config()

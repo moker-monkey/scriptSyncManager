@@ -41,10 +41,13 @@ def convert_menu_to_script_schedule(
                     # 创建script_schedule条目
                     schedule_item = {
                         "name": item["name"],
-                        "period": item.get("period", ""),
-                        "turn_on": item.get("turn_on", False),
-                        "last_sync_datetime": "",  # 最后一次的同步日期(同步日期并非执行时间,而是时间参数)
-                        "next_sync_datetime": "",  # 下一次的同步日期(如果多次未同步,那么下一次同步日期是根据最后一次同步日期来算的,那么就会立即执行,直到同步日期超过当前时间)
+                        "cn_name": item.get("cn_name", ""),
+                        "desc": item.get("desc", ""),
+                        "interval": item.get("interval", ""),
+                        "is_error_stop": item.get("is_error_stop", False),
+                        "type": item.get("type", ""),
+                        "schedule": item.get("schedule", {}),
+                        "meta": item.get("meta", {})
                     }
 
                     script_schedule.append(schedule_item)

@@ -10,6 +10,7 @@
     python manager.py test <script_name> [options]  测试指定脚本
     python manager.py ls [options]  列出所有脚本
     python manager.py pf <script_name> [options]  列出脚本中的所有函数
+    python manager.py ps 打印当前调度堆中的所有任务
     python manager.py --help  显示帮助信息
 """
 
@@ -23,6 +24,7 @@ sys.path.append("/Users/xiaochangming/Desktop/agent-trade/scriptSyncManager")
 
 from core.handler import ScriptHandler
 from core.config import config
+from core.scheduler import ScriptScheduler
 
 
 class Manager:
@@ -33,6 +35,7 @@ class Manager:
     def __init__(self):
         """初始化管理器"""
         self.handler = ScriptHandler()
+        self.scheduler = ScriptScheduler()
 
     def run_init(self,script_name: str) -> Dict[str, Any]:
         """
@@ -296,6 +299,21 @@ class Manager:
             print(f"❌ 重试失败: {str(e)}")
             return error_result
 
+    def print_schedule(self):
+        """
+        打印当前调度堆中的所有任务
+        """
+        print("📅 当前调度堆中的任务")
+        print("-" * 50)
+        try:
+            self.scheduler.print_schedule_heap()
+            print("-" * 50)
+            print("✅ 调度堆任务打印完成")
+        except Exception as e:
+            print(f"❌ 打印调度堆任务失败: {str(e)}")
+            return {"success": False, "message": str(e)}
+        return {"success": True}
+
     def _print_convert_result(
         self, result: Dict[str, Any], verbose: bool = False
     ) -> None:
@@ -458,6 +476,9 @@ def create_parser() -> argparse.ArgumentParser:
     print_func_parser = subparsers.add_parser("pf", help="打印指定脚本的所有函数")
     print_func_parser.add_argument("script_name", help="脚本名称（不含.py扩展名）")
 
+    # print-schedule 命令
+    print_schedule_parser = subparsers.add_parser("ps", help="打印当前调度堆中的所有任务")
+
     return parser
 
 
@@ -518,6 +539,9 @@ def main():
         elif args.command == "pf":
             print_func(args.script_name)
             sys.exit(0)
+        elif args.command == "ps":
+            result = manager.print_schedule()
+            sys.exit(0 if result["success"] else 1)
 
     except KeyboardInterrupt:
         print("\n\n⚠️  操作被用户中断")
