@@ -17,6 +17,8 @@ class ScriptSyncMenu(SQLModel, table=True):
     name: str = Field(index=True, description="脚本名称")
     cn_name: Optional[str] = Field(default=None, description="脚本中文名称")
     desc: Optional[str] = Field(default=None, description="脚本数据相关描述")
+    type: str = Field(default="single", description="脚本类型", regex=r"^(single|iterator|iterator-single)$")
+    save_to_db: Optional[bool] = Field(default=True, description="是否保存到数据库")
     interval: Optional[str] = Field(default=None, description="执行间隔")
     is_error_stop: Optional[bool] = Field(default=False, description="是否在错误时停止")
     meta: Optional[Dict[str, Any]] = Field(default=None, sa_type=JSON, description="脚本元数据")

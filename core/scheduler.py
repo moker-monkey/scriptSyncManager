@@ -167,17 +167,20 @@ class ScriptScheduler:
 
             for script in scripts_schedule:
                 if script.period:
-                    print(script.name)
+                    print(script)
                     # 计算下次执行时间
                     last_sync = script.last_sync_datetime or datetime.now()
+                    # 确保参数符合函数要求
+                    start_time = script.start_time or "00:00:00"
+                    end_time = script.end_time or start_time or "23:59:59"
+                    step = script.step or "0"
                     next_sync = calcNextSyncDatetime(
                                 current_datetime=last_sync, 
                                 period=script.period,
-                                start_time=script.start_time,
-                                end_time=script.end_time,
-                                step=script.step
+                                start_time=start_time,
+                                end_time=end_time,
+                                step=step
                         )
-                    print('next_sync',next_sync)
                     if next_sync:
                         # 加入调度堆
                         heappush(self.schedule_heap, (next_sync, script.name))
@@ -234,10 +237,13 @@ class ScriptScheduler:
             Dict[str, Any]: 执行结果
         """
         try:
+            print(f"script_schedule: {script_schedule}")
+            # 定时调度脚本默认使用period函数
+            func_name = 'period'
             # 执行脚本，默认调用period函数
             result = self.handler._execute_script(
                 script_name=script_menu.name,
-                func_name=script_menu.func_name,
+                func_name=func_name,
                 type=script_menu.type,
                 save_to_db=script_menu.save_to_db,
                 interval=script_menu.interval,
@@ -278,12 +284,16 @@ class ScriptScheduler:
 
                     # 重新计算下次执行时间并加入调度堆
                     if script_schedule.period and self.is_running:
+                        # 确保所有参数都有合理的默认值
+                        start_time = script_schedule.start_time or "00:00:00"
+                        end_time = script_schedule.end_time or start_time or "23:59:59"
+                        step = script_schedule.step or "0"
                         next_sync = calcNextSyncDatetime(
                                 current_datetime=datetime.now(), 
                                 period=script_schedule.period,
-                                start_time=script_schedule.start_time,
-                                end_time=script_schedule.end_time,
-                                step=script_schedule.step
+                                start_time=start_time,
+                                end_time=end_time,
+                                step=step
                         )
                         if next_sync:
                             heappush(self.schedule_heap, (next_sync, script_name))

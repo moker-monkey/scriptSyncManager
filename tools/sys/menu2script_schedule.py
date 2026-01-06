@@ -47,7 +47,8 @@ def convert_menu_to_script_schedule(
                         "is_error_stop": item.get("is_error_stop", False),
                         "type": item.get("type", ""),
                         "schedule": item.get("schedule", {}),
-                        "meta": item.get("meta", {})
+                        "meta": item.get("meta", {}),
+                        "save_to_db": item.get("save_to_db", True),
                     }
 
                     script_schedule.append(schedule_item)

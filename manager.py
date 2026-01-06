@@ -11,6 +11,7 @@
     python manager.py ls [options]  列出所有脚本
     python manager.py pf <script_name> [options]  列出脚本中的所有函数
     python manager.py ps 打印当前调度堆中的所有任务
+    python manager.py start  启动脚本调度器
     python manager.py --help  显示帮助信息
 """
 
@@ -314,6 +315,31 @@ class Manager:
             return {"success": False, "message": str(e)}
         return {"success": True}
 
+    def start_scheduler(self):
+        """
+        启动调度器
+        开始调度脚本，会调用self._load_scripts加载所有脚本的调度信息，以及_immediate_execute执行所有immediate为True的脚本
+        """
+        print("🚀 启动脚本调度器")
+        print("-" * 50)
+        try:
+            self.scheduler.start()
+            print("✅ 脚本调度器启动成功")
+            print("   调度器将在后台持续运行，处理定时任务")
+            print("   按 Ctrl+C 停止调度器")
+            print("-" * 50)
+            # 保持程序运行，直到用户中断
+            while True:
+                import time
+                time.sleep(1)
+            return {"success": True, "message": "调度器已启动"}
+        except KeyboardInterrupt:
+            print("\n⚠️  调度器被用户中断")
+            return {"success": True, "message": "调度器已停止"}
+        except Exception as e:
+            print(f"❌ 启动脚本调度器失败: {str(e)}")
+            return {"success": False, "message": str(e)}
+
     def _print_convert_result(
         self, result: Dict[str, Any], verbose: bool = False
     ) -> None:
@@ -479,6 +505,9 @@ def create_parser() -> argparse.ArgumentParser:
     # print-schedule 命令
     print_schedule_parser = subparsers.add_parser("ps", help="打印当前调度堆中的所有任务")
 
+    # start-scheduler 命令
+    start_scheduler_parser = subparsers.add_parser("start", help="启动脚本调度器")
+
     return parser
 
 
@@ -541,6 +570,9 @@ def main():
             sys.exit(0)
         elif args.command == "ps":
             result = manager.print_schedule()
+            sys.exit(0 if result["success"] else 1)
+        elif args.command == "start":
+            result = manager.start_scheduler()
             sys.exit(0 if result["success"] else 1)
 
     except KeyboardInterrupt:

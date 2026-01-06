@@ -374,7 +374,7 @@ class Config:
                         # 创建新记录 - 同时创建 ScriptSyncMenu 和 ScriptSyncSchedule
                         new_menu = ScriptSyncMenu(
                             name=script_name,
-                            remark=f"从 Menu.json 自动创建 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                            remark=f"自动创建",
                         )
                         session.add(new_menu)
 

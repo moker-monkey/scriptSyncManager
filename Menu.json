@@ -71,18 +71,6 @@
                 "name": "rate_interbank",
                 "desc": "银行间同业拆借利率是指银行之间进行拆借资金的利率,反映了市场资金供需的平衡状态",
                 "cn_name": "银行间同业拆借利率",
-                "interval": "5-10",
-                "is_error_stop": false,
-                "schedule":{
-                    "type": "iterator-single",
-                    "period": "every_wDay",
-                    "turn_on": true,
-                    "start_time": "09:00:00",
-                    "end_time": "17:00:00",
-                    "step": "1h",
-                    "is_auto_retry": true,
-                    "immediate_run": true
-                },
                 "meta": {
                     "akshare_api": "rate_interbank",
                     "akshare_params": {
@@ -237,5 +225,21 @@
                 "cn_name": "研报分析"
             }
         ]
+    },
+    {
+        "name": "test",
+        "cn_name": "测试专用",
+        "desc": "金融面是预测政府行动的指标,如果金融面显示通胀严重则预期政府会采取紧缩的货币政策.",
+        "is_error_stop": false,
+        "schedule": {
+            "type": "iterator-single",
+            "period": "every_wDay",
+            "turn_on": true,
+            "start_time": "21:34:00",
+            "end_time": "23:59:59",
+            "step": "1s",
+            "is_auto_retry": true,
+            "immediate_run": true
+        }
     }
 ]
