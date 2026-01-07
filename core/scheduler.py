@@ -24,7 +24,7 @@ from typing import Dict, Any, List, Optional
 from .config import config
 from .models import ScriptSyncSchedule, ScriptSyncMenu
 from .handler import ScriptHandler
-from tools.sys.calcNextSyncDatetime import calcNextSyncDatetime
+from tools.sys.calcNextSyncDatetime import calcNextSyncDatetime, calcUnExecutedTimes
 
 
 class ScriptScheduler:
@@ -238,8 +238,9 @@ class ScriptScheduler:
         """
         try:
             print(f"script_schedule: {script_schedule}")
-            # 定时调度脚本默认使用period函数
-            func_name = 'period'
+            func_name = script_schedule.func_name
+            if not func_name:
+                func_name = 'period' if script_menu.type == 'single' else 'iteration'
             # 执行脚本，默认调用period函数
             result = self.handler._execute_script(
                 script_name=script_menu.name,
@@ -376,12 +377,13 @@ class ScriptScheduler:
                 exec_times = []
 
                 # 计算所有应该执行但未执行的时间点
-                cron = croniter(script_schedule.period, last_sync)
-                next_exec_time = cron.get_next(datetime)
-
-                while next_exec_time <= now:
-                    exec_times.append(next_exec_time)
-                    next_exec_time = cron.get_next(datetime)
+                exec_times = calcUnExecutedTimes(
+                    last_sync,
+                    script_schedule.period,
+                    script_schedule.start_time or "00:00:00",
+                    script_schedule.end_time or "23:59:59",
+                    script_schedule.step or "0"
+                )
 
             if not exec_times:
                 self.logger.info(f"脚本 {script_name} 没有需要补执行的任务")

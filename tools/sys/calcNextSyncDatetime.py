@@ -217,3 +217,57 @@ def calcNextSyncDatetime(
         next_start, next_end = calculate_day_datetimes(next_base_date)
         next_exec_times = generate_exec_times(next_start, next_end, step_seconds)
         return next_exec_times[0]
+
+def calcUnExecutedTimes(
+    last_sync_datetime: datetime.datetime,
+    period: str,
+    start_time: str = "00:00:00",
+    end_time: str = "23:59:59",
+    step: str = "0") -> list[datetime.datetime]:
+    """计算未执行的时间点list
+    
+    :param last_sync_datetime: 上次同步时间
+    :param period: 同步周期
+    :param start_time: 同步开始时间
+    :param end_time: 同步结束时间
+    :param step: 同步时间步长
+    :return: 未执行的时间点list
+    """
+    # 初始化未执行时间点列表
+    unexecuted_times = []
+    
+    # 获取当前时间
+    current_datetime = datetime.datetime.now()
+    
+    # 初始化当前检查时间为last_sync_datetime
+    check_datetime = last_sync_datetime
+    
+    # 循环计算下一次执行时间，直到超过当前时间
+    while True:
+        # 调用calcNextSyncDatetime计算下一次执行时间
+        next_exec_datetime = calcNextSyncDatetime(
+            check_datetime,
+            period,
+            start_time,
+            end_time,
+            step
+        )
+        
+        # 检查下一次执行时间是否超过当前时间
+        if next_exec_datetime > current_datetime:
+            break
+        
+        # 检查下一次执行时间是否在last_sync_datetime之后（避免重复添加）
+        if next_exec_datetime > last_sync_datetime:
+            # 确保时间点不重复添加
+            if not unexecuted_times or next_exec_datetime != unexecuted_times[-1]:
+                unexecuted_times.append(next_exec_datetime)
+        
+        # 更新检查时间为下一次执行时间
+        check_datetime = next_exec_datetime
+        
+        # 防止无限循环，设置最大迭代次数
+        if len(unexecuted_times) > 1000:
+            break
+    
+    return unexecuted_times

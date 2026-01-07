@@ -29,6 +29,7 @@ class ScriptHandler:
         """初始化脚本处理器"""
         self.scripts_dir = Path(config.base_dir) / "scripts"
         self.logger = self._setup_logger()
+        self.config = config
 
     def _setup_logger(self) -> logging.Logger:
         """
@@ -225,6 +226,7 @@ class ScriptHandler:
                 if result.get("is_error_stop"):
                     result["error_start_index"] = []
                     result["error_items"] = []
+                    result["errors"] = []
                     result["error_start_index"] = 0
 
                 if len(depend_result) == 0:

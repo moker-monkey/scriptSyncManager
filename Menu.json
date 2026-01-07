@@ -36,7 +36,18 @@
                 "name": "a_stock_item_em",
                 "cn_name": "股票详情-A股",
                 "desc": "获取股票的基础信息",
-                "period": "every_month_L_0",
+                "type": "iterator",
+                "is_error_stop": true,
+                "save_to_db": true,
+                "interval": "1",
+                "schedule": {
+                    "period": "every_month_L",
+                    "turn_on": true,
+                    "start_time": "00:00:00",
+                    "end_time": "00:00:00",
+                    "step": "1s",
+                    "immediate_run": true
+                },
                 "meta": {
                     "akshare_api": "stock_individual_info_em"
                 }
@@ -81,9 +92,24 @@
                 }
             },
             {
-                "name": "SHIBOR",
-                "desc": "SHIBOR是一个反映上海市场银行间利率的指数,银行间利率越高,市场资金需求就越大,投资就越紧张",
-                "cn_name": "香港银行间利率"
+                "name": "repo_rate_hist",
+                "desc": "是国债逆回购近一年内的定盘利率",
+                "cn_name": "国债逆回购定盘利率",
+                "is_error_stop": false,
+                "schedule": {
+                    "period": "every_wDay",
+                    "turn_on": false,
+                    "start_time": "11:30:30",
+                    "step": "0"
+                },
+                "meta": {
+                    "akshare_api": "repo_rate_hist",
+                    "akshare_params": {
+                        "market": "上海银行同业拆借市场",
+                        "symbol": "Shibor人民币",
+                        "indicator": "隔夜"
+                    }
+                }
             },
             {
                 "name": "USDCNY",
@@ -229,16 +255,17 @@
     {
         "name": "test",
         "cn_name": "测试专用",
-        "desc": "金融面是预测政府行动的指标,如果金融面显示通胀严重则预期政府会采取紧缩的货币政策.",
+        "desc": "一个用于测试的全量配置",
+        "type": "iterator-single",
         "is_error_stop": false,
+        "save_to_db": false,
+        "interval": "1",
         "schedule": {
-            "type": "iterator-single",
             "period": "every_wDay",
-            "turn_on": true,
+            "turn_on": false,
             "start_time": "21:34:00",
             "end_time": "23:59:59",
             "step": "1s",
-            "is_auto_retry": true,
             "immediate_run": true
         }
     }

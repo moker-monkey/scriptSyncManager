@@ -449,9 +449,13 @@ def create_parser() -> argparse.ArgumentParser:
   %(prog)s run sample_data_script --no-db           # 不保存到数据库
   %(prog)s ls                                    # 列出所有脚本
   %(prog)s ls --filter test                      # 只显示测试脚本
+  %(prog)s pf sample_data_script             # 打印脚本下的全部函数名称
+  %(prog)s ps                               # 打印所有定时任务
+  %(prog)s start                            # 启动脚本的定时任务
   %(prog)s convert-menu                             # 转换 Menu.json
   %(prog)s convert-menu --menu-path path/to/Menu.json  # 指定 Menu.json 路径
   %(prog)s convert-menu -v                         # 转换 Menu.json 并显示详细信息
+  %(prog)s retry sample_data_script              # 重试脚本的上一次失败记录
         """,
     )
 

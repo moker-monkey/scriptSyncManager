@@ -55,7 +55,11 @@ class ScriptSyncSchedule(SQLModel, table=True):
             "example": {
                 "name": "示例脚本",
                 "turn_on": True,
-                "period": "0 */6 * * *",
+                "period": "every_day",
+                "start_time": "08:00:00",
+                "end_time": "18:00:00",
+                "step": "1h",
+                "immediate": True,
                 "last_sync_datetime": "2023-10-01T12:00:00",
                 "next_sync_datetime": "2023-10-01T18:00:00"
             }

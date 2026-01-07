@@ -44,16 +44,6 @@ def example(script, handler, depend_item):
     rate_interbank_df["indicator"] = indicator
     return rate_interbank_df
 
-def search_params(market, symbol, indicator):
-    """
-    搜索参数函数，用于搜索银行间同业拆借利率的参数
-    """
-    params_list = get_foucs_params()
-    for params in params_list:
-        if params["market"] == market and params["symbol"] == symbol and params["indicator"] == indicator:
-            return params
-    return None
-
 def get_foucs_params():
     return [
         {"market": "上海银行同业拆借市场", "symbol": "Shibor人民币", "indicator": "隔夜"},

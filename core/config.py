@@ -340,6 +340,12 @@ class Config:
                         original_last_sync = existing_schedule.last_sync_datetime
 
                         # 更新 ScriptSyncMenu
+                        existing_menu.cn_name = row.get("cn_name", "")
+                        existing_menu.desc = row.get("desc", "")
+                        existing_menu.type = row.get("type", "")
+                        existing_menu.is_error_stop = row.get("is_error_stop", False)
+                        existing_menu.save_to_db = row.get("save_to_db", False)
+                        existing_menu.interval = row.get("interval", "")
                         existing_menu.updated_at = datetime.now()
                         session.add(existing_menu)
 
@@ -347,7 +353,7 @@ class Config:
                         existing_schedule.period = schedule.get("period", "")
                         existing_schedule.turn_on = schedule.get("turn_on", False)
                         existing_schedule.start_time = schedule.get("start_time", None)
-                        existing_schedule.end_time = schedule.get("end_time", None)
+                        existing_schedule.end_time = schedule.get("end_time", existing_schedule.start_time)
                         existing_schedule.step = schedule.get("step", "")
                         existing_schedule.immediate = schedule.get("immediate", False)
 
@@ -374,6 +380,12 @@ class Config:
                         # 创建新记录 - 同时创建 ScriptSyncMenu 和 ScriptSyncSchedule
                         new_menu = ScriptSyncMenu(
                             name=script_name,
+                            cn_name=row.get("cn_name", ""),
+                            desc=row.get("desc", ""),
+                            type=row.get("type", ""),
+                            is_error_stop=row.get("is_error_stop", False),
+                            save_to_db=row.get("save_to_db", False),
+                            interval=row.get("interval", "1"),
                             remark=f"自动创建",
                         )
                         session.add(new_menu)
@@ -381,6 +393,7 @@ class Config:
                         new_schedule = ScriptSyncSchedule(
                             name=script_name,
                             period=schedule.get("period", ""),
+                            func_name=schedule.get("func_name", ""),
                             turn_on=schedule.get("turn_on", False),
                             last_sync_datetime=None,  # 新记录没有最后同步时间
                             start_time=schedule.get("start_time", None),
