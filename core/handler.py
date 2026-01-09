@@ -150,6 +150,7 @@ class ScriptHandler:
             "is_exists": is_exists,
             "total_count": total_count,
             "success_count": start_index,
+            "execution_count": 0,
             "execution_time": datetime.now(),
             "finish_time": None,
             "error_items": error_items.copy() if isinstance(error_items, list) else [],
@@ -263,6 +264,7 @@ class ScriptHandler:
                             break
 
                     result["success_count"] += 1
+                    result["execution_count"] += 1
                     interval_val = result["interval"]
                     if isinstance(interval_val, str) and "-" in interval_val:
                         start, end = map(int, interval_val.split("-"))
